@@ -67,30 +67,37 @@ sudo apt install -y curl wget git unzip htop jq ca-certificates software-propert
 echo "[INFO] Setting timezone to $TIMEZONE"
 sudo timedatectl set-timezone "$TIMEZONE"
 
-# === EXECUTE SCRIPTS ===
-for raw_arg in "$@"; do
-    service=$(echo "$raw_arg" | cut -d':' -f1)
-    param=$(echo "$raw_arg" | cut -d':' -s -f2)  # empty if no param
+# === EXECUTE SERVICES ===
+for raw in "$@"; do
+    IFS=':' read -r service_name_and_args <<< "$raw"
+    service=$(echo "$raw" | cut -d':' -f1)
+    args=()
+    IFS=':' read -ra parts <<< "$raw"
+    for i in "${parts[@]:1}"; do
+        args+=("$i")
+    done
 
-    echo "[INFO] Processing: $service"
+    echo "[INFO] Processing service: $service"
 
+    tmp_script="/tmp/cloud-init-$service.sh"
     distro_script_url="$DISTRO_URL/$service.sh"
     common_script_url="$COMMON_URL/$service.sh"
-    tmp_script="/tmp/cloud-init-${service}.sh"
 
     echo "[INFO] Trying: $distro_script_url"
     if curl --fail -fsSL "$distro_script_url" -o "$tmp_script"; then
-        echo "[INFO] Running $service from distro-specific script..."
-        sudo bash "$tmp_script" "$param"
+        chmod +x "$tmp_script"
+        echo "[INFO] Running $service (distro version)..."
+        sudo bash "$tmp_script" "${args[@]}"
         continue
     fi
 
     echo "[INFO] Trying fallback: $common_script_url"
     if curl --fail -fsSL "$common_script_url" -o "$tmp_script"; then
-        echo "[INFO] Running $service from common fallback..."
-        sudo bash "$tmp_script" "$param"
+        chmod +x "$tmp_script"
+        echo "[INFO] Running $service (common fallback)..."
+        sudo bash "$tmp_script" "${args[@]}"
     else
-        echo "[WARNING] [$service] not found in either location."
+        echo "[WARNING] Script for '$service' not found."
     fi
 done
 
