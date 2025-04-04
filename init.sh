@@ -75,13 +75,15 @@ for service in "$@"; do
     common_script_url="$COMMON_URL/$service.sh"
 
     echo "[INFO] Trying: $distro_script_url"
-    if curl --fail -fsSL "$distro_script_url" | sudo bash; then
+    if curl --fail -fsSL "$distro_script_url" -o /tmp/cloud-init-$service.sh; then
+        sudo bash /tmp/cloud-init-$service.sh
         echo "[INFO] [$service] executed from distro-specific script."
         continue
     fi
 
     echo "[INFO] Trying fallback: $common_script_url"
-    if curl --fail -fsSL "$common_script_url" | sudo bash; then
+    if curl --fail -fsSL "$common_script_url" -o /tmp/cloud-init-$service.sh; then
+        sudo bash /tmp/cloud-init-$service.sh
         echo "[INFO] [$service] executed from common script."
     else
         echo "[WARNING] [$service] not found in either location."
