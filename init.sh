@@ -68,23 +68,27 @@ echo "[INFO] Setting timezone to $TIMEZONE"
 sudo timedatectl set-timezone "$TIMEZONE"
 
 # === EXECUTE SCRIPTS ===
-for service in "$@"; do
+for raw_arg in "$@"; do
+    service=$(echo "$raw_arg" | cut -d':' -f1)
+    param=$(echo "$raw_arg" | cut -d':' -s -f2)  # empty if no param
+
     echo "[INFO] Processing: $service"
 
     distro_script_url="$DISTRO_URL/$service.sh"
     common_script_url="$COMMON_URL/$service.sh"
+    tmp_script="/tmp/cloud-init-${service}.sh"
 
     echo "[INFO] Trying: $distro_script_url"
-    if curl --fail -fsSL "$distro_script_url" -o /tmp/cloud-init-$service.sh; then
-        sudo bash /tmp/cloud-init-$service.sh
-        echo "[INFO] [$service] executed from distro-specific script."
+    if curl --fail -fsSL "$distro_script_url" -o "$tmp_script"; then
+        echo "[INFO] Running $service from distro-specific script..."
+        sudo bash "$tmp_script" "$param"
         continue
     fi
 
     echo "[INFO] Trying fallback: $common_script_url"
-    if curl --fail -fsSL "$common_script_url" -o /tmp/cloud-init-$service.sh; then
-        sudo bash /tmp/cloud-init-$service.sh
-        echo "[INFO] [$service] executed from common script."
+    if curl --fail -fsSL "$common_script_url" -o "$tmp_script"; then
+        echo "[INFO] Running $service from common fallback..."
+        sudo bash "$tmp_script" "$param"
     else
         echo "[WARNING] [$service] not found in either location."
     fi
