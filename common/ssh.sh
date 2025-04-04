@@ -35,7 +35,7 @@ fi
 VAULT_SSH_HELPER_VERSION="0.2.1"
 VAULT_SSH_HELPER_CONFIG="/etc/vault-ssh-helper.d/config.hcl"
 
-echo "[SSH] Installing Vault SSH Helper and configuring for Vault at $VAULT_ADDR"
+echo "[SSH] Installing Vault SSH Helper and configuring for Vault at https://$VAULT_ADDR"
 
 # === PREREQUISITES ===
 sudo apt update
@@ -54,7 +54,7 @@ fi
 echo "[SSH] Writing Vault SSH Helper config..."
 sudo mkdir -p /etc/vault-ssh-helper.d
 sudo tee "$VAULT_SSH_HELPER_CONFIG" > /dev/null <<EOF
-vault_addr = "$VAULT_ADDR"
+vault_addr = "https://$VAULT_ADDR"
 ssh_mount_point = "$VAULT_MOUNT"
 tls_skip_verify = false
 allowed_roles = "*"
@@ -85,4 +85,4 @@ sudo sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/ss
 # === RESTART SSHD ===
 sudo systemctl restart ssh
 
-echo "[SSH] Vault SSH Helper setup complete. Vault OTP logins enabled via $VAULT_ADDR"
+echo "[SSH] Vault SSH Helper setup complete. Vault OTP logins enabled via https://$VAULT_ADDR"
