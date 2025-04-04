@@ -72,8 +72,9 @@ sudo cp /etc/pam.d/sshd /etc/pam.d/sshd.bak
 sudo tee /etc/pam.d/sshd > /dev/null <<EOF
 # PAM configuration for sshd
 
-auth       requisite   pam_exec.so quiet expose_authtok log=/var/log/vault-ssh-helper.log /usr/local/bin/vault-ssh-helper -config=$VAULT_SSH_HELPER_CONFIG
-account    required    pam_unix.so
+#@include common-auth
+auth requisite pam_exec.so quiet expose_authtok log=/var/log/vault-ssh.log /usr/local/bin/vault-ssh-helper -config=/etc/vault-ssh-helper.d/config.hcl
+auth optional pam_unix.so not_set_pass use_first_pass nodelay
 EOF
 
 # === UPDATE SSHD CONFIG ===
