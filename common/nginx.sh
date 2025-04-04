@@ -23,41 +23,40 @@ set -e
 echo "[NGINX] Installing NGINX on $(lsb_release -ds)..."
 
 # Install prerequisites
-apt install -y curl gnupg2 ca-certificates lsb-release
+sudo apt install -y curl gnupg2 ca-certificates lsb-release
 
 # Add NGINX signing key
-curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg
+curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor | sudo tee /usr/share/keyrings/nginx-archive-keyring.gpg > /dev/null
 
-# Add stable repo
-echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/$(. /etc/os-release && echo "$ID") $(lsb_release -cs) nginx" \
-    | tee /etc/apt/sources.list.d/nginx.list > /dev/null
+# Add NGINX stable repository
+echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/$(. /etc/os-release && echo "$ID") $(lsb_release -cs) nginx" | sudo tee /etc/apt/sources.list.d/nginx.list > /dev/null
 
-# Pin nginx.org repo
-tee /etc/apt/preferences.d/99nginx > /dev/null <<EOF
+# Pin nginx.org packages
+sudo tee /etc/apt/preferences.d/99nginx > /dev/null <<EOF
 Package: *
 Pin: origin nginx.org
 Pin-Priority: 900
 EOF
 
 # Install NGINX
-apt update
-apt install -y nginx
+sudo apt update
+sudo apt install -y nginx
 
-# Enable and start NGINX
-systemctl enable nginx
-systemctl start nginx
+# Enable and start NGINX service
+sudo systemctl enable nginx
+sudo systemctl start nginx
 
-# === Configure /var/app/current as default web root ===
+# === Configure /var/app/current as web root ===
 
 echo "[NGINX] Setting up /var/app/current as web root..."
-mkdir -p /var/app/current
-chown -R www-data:www-data /var/app/current
+sudo mkdir -p /var/app/current
+sudo chown -R www-data:www-data /var/app/current
 
 # Add default index.html
-echo "<h1>Welcome to NGINX from /var/app/current</h1>" > /var/app/current/index.html
+echo "<h1>Welcome to NGINX from /var/app/current</h1>" | sudo tee /var/app/current/index.html > /dev/null
 
-# Create custom server block
-cat > /etc/nginx/conf.d/default.conf <<EOF
+# Create default server block config
+sudo tee /etc/nginx/conf.d/default.conf > /dev/null <<EOF
 server {
     listen 80 default_server;
     server_name _;
@@ -71,7 +70,6 @@ server {
 EOF
 
 # Restart NGINX
-echo "[NGINX] Restarting NGINX..."
-systemctl restart nginx
+sudo systemctl restart nginx
 
-echo "[NGINX] Setup complete. Serving from /var/app/current"
+echo "[NGINX] Setup complete. Serving content from /var/app/current"

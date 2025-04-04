@@ -20,31 +20,39 @@
 
 set -e
 
-echo "[NODEJS] Installing Node.js (LTS)..."
+ echo "[NODEJS] Installing Node.js (LTS)..."
 
-# Install dependencies
-apt install -y curl gnupg2 ca-certificates
+ # Install system dependencies
+ sudo apt install -y curl gnupg2 ca-certificates
 
-# Add NodeSource (LTS)
-curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
-apt install -y nodejs
+ # Add NodeSource (LTS version)
+ curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo bash -
 
-# Show versions
-echo "[NODEJS] Node.js version: $(node -v)"
-echo "[NODEJS] npm version: $(npm -v)"
+ # Install Node.js and npm
+ sudo apt install -y nodejs
 
-# Install PM2 globally
-echo "[NODEJS] Installing pm2 globally..."
-npm install -g pm2
-echo "[NODEJS] PM2 version: $(pm2 -v)"
+ # Show versions
+ echo "[NODEJS] Node.js version: $(node -v)"
+ echo "[NODEJS] npm version: $(npm -v)"
 
-# Enable PM2 startup on boot using systemd
-echo "[NODEJS] Configuring PM2 to launch on system boot..."
-pm2 startup systemd -u "$USER" --hp "$HOME" | bash
+ # Install PM2 globally
+ echo "[NODEJS] Installing pm2 globally..."
+ sudo npm install -g pm2
 
-# Optional: save empty process list (will save if apps are started later)
-pm2 save
+ # Verify PM2 version
+ echo "[NODEJS] PM2 version: $(pm2 -v)"
 
-echo "[NODEJS] PM2 is now set to launch on reboot. You can run apps using:"
-echo "         pm2 start app.js"
-echo "         pm2 save    # to persist them"
+ # Enable PM2 on system boot
+ echo "[NODEJS] Configuring PM2 to launch on system boot..."
+
+ # Get the user and home path
+ TARGET_USER="${SUDO_USER:-$(whoami)}"
+ USER_HOME=$(eval echo "~$TARGET_USER")
+
+ # Run PM2 startup command for systemd
+ sudo -u "$TARGET_USER" pm2 startup systemd -u "$TARGET_USER" --hp "$USER_HOME" | sudo bash
+
+ # Save empty process list (can be replaced later with actual apps)
+ sudo -u "$TARGET_USER" pm2 save
+
+ echo "[NODEJS] PM2 is ready to run apps and restart them on boot."

@@ -20,30 +20,44 @@
 
 set -e
 
-SCRIPT_TO_WATCH="/var/app/current/.cloud/init.sh"
+# === CONFIGURATION ===
+WATCHED_FILE="/var/app/current/.cloud/init.sh"
 LOG_FILE="/var/log/cloud-init-app.log"
 PID_FILE="/var/run/cloud-init-app.pid"
 
-echo "[WATCH] Starting watcher for: $SCRIPT_TO_WATCH"
+echo "[WATCH] Starting watcher for: $WATCHED_FILE"
 
 # Ensure file exists
-if [ ! -f "$SCRIPT_TO_WATCH" ]; then
-    echo "[WATCH] File not found: $SCRIPT_TO_WATCH"
+if [ ! -f "$WATCHED_FILE" ]; then
+    echo "[WATCH] File not found: $WATCHED_FILE"
     exit 1
 fi
 
-# Install dependency if needed
+# Ensure inotify-tools is installed
 if ! command -v inotifywait > /dev/null; then
     echo "[WATCH] Installing inotify-tools..."
-    apt install -y inotify-tools
+    sudo apt update
+    sudo apt install -y inotify-tools
 fi
 
-# Daemonize the watch
+# Create log and run directories if needed
+sudo mkdir -p "$(dirname "$LOG_FILE")"
+sudo mkdir -p "$(dirname "$PID_FILE")"
+sudo touch "$LOG_FILE"
+sudo chown "$USER" "$LOG_FILE"
+
+# Start the watcher as a background process
 nohup bash -c "
-    echo \$$ > $PID_FILE
-    while inotifywait -e close_write \"$SCRIPT_TO_WATCH\"; do
-        echo \"[WATCH][\$(date)] Detected change. Running init script...\" >> \"$LOG_FILE\"
-        bash \"$SCRIPT_TO_WATCH\" >> \"$LOG_FILE\" 2>&1
+    echo \$\$ > \"$PID_FILE\"
+    echo \"[WATCH] Watching $WATCHED_FILE for changes...\" >> \"$LOG_FILE\"
+
+    # Run immediately once
+    bash \"$WATCHED_FILE\" >> \"$LOG_FILE\" 2>&1
+
+    # Start watching for changes
+    while inotifywait -e close_write \"$WATCHED_FILE\"; do
+        echo \"[WATCH][\$(date)] Detected change. Running script...\" >> \"$LOG_FILE\"
+        bash \"$WATCHED_FILE\" >> \"$LOG_FILE\" 2>&1
     done
 " > /dev/null 2>&1 &
 
