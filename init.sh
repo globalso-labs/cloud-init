@@ -59,13 +59,13 @@ fi
 
 # === BASE PACKAGE SETUP ===
 echo "[INFO] Updating system..."
-apt update && apt upgrade -y
+sudo apt update && sudo apt upgrade -y
 
 echo "[INFO] Installing base packages..."
-apt install -y curl wget git unzip htop jq ca-certificates software-properties-common lsb-release net-tools
+sudo apt install -y curl wget git unzip htop jq ca-certificates software-properties-common lsb-release net-tools
 
 echo "[INFO] Setting timezone to $TIMEZONE"
-timedatectl set-timezone "$TIMEZONE"
+sudo timedatectl set-timezone "$TIMEZONE"
 
 # === EXECUTE SCRIPTS ===
 for service in "$@"; do
@@ -75,13 +75,13 @@ for service in "$@"; do
     common_script_url="$COMMON_URL/$service.sh"
 
     echo "[INFO] Trying: $distro_script_url"
-    if curl --fail -fsSL "$distro_script_url" | bash; then
+    if curl --fail -fsSL "$distro_script_url" | sudo bash; then
         echo "[INFO] [$service] executed from distro-specific script."
         continue
     fi
 
     echo "[INFO] Trying fallback: $common_script_url"
-    if curl --fail -fsSL "$common_script_url" | bash; then
+    if curl --fail -fsSL "$common_script_url" | sudo bash; then
         echo "[INFO] [$service] executed from common script."
     else
         echo "[WARNING] [$service] not found in either location."
