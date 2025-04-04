@@ -21,22 +21,20 @@
 set -e
 
 echo "Updating system packages..."
-sudo apt update && sudo apt upgrade -y
+sudo apt update -y
+sudo apt upgrade -y
 
 echo "Installing Java (required for Jenkins)..."
 sudo apt install -y openjdk-17-jdk
 
 echo "Adding Jenkins repository key..."
-curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee \
-    /usr/share/keyrings/jenkins-keyring.asc > /dev/null
+curl -fsSL https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key | sudo tee /usr/share/keyrings/jenkins-keyring.asc > /dev/null
 
-echo "Adding Jenkins repository..."
-echo deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] \
-    https://pkg.jenkins.io/debian-stable binary/ | sudo tee \
-    /etc/apt/sources.list.d/jenkins.list > /dev/null
+echo "Adding Jenkins repository to sources list..."
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | sudo tee /etc/apt/sources.list.d/jenkins.list > /dev/null
 
 echo "Updating package list..."
-sudo apt update
+sudo apt update -y
 
 echo "Installing Jenkins..."
 sudo apt install -y jenkins
@@ -45,8 +43,8 @@ echo "Enabling and starting Jenkins service..."
 sudo systemctl enable jenkins
 sudo systemctl start jenkins
 
-echo "Checking Jenkins status..."
+echo "Checking Jenkins service status..."
 sudo systemctl status jenkins --no-pager
 
-echo "Retrieving initial admin password..."
+echo "Retrieving initial Jenkins admin password..."
 sudo cat /var/lib/jenkins/secrets/initialAdminPassword
