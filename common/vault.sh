@@ -17,48 +17,64 @@
 # set forth in that license file. If no license file is provided, no rights are granted to use, modify, distribute,
 # or otherwise exploit this software.
 #
-
 set -e
 
-VAULT_VERSION="1.15.0"
-VAULT_BIN="/usr/local/bin/vault"
+# === Optional override via parameter ===
+INPUT_VAULT_ADDR="$1"
+VENV_PATH="/opt/azure/venv"
 
-ENV_FILE="/opt/azure/venv"
-
-# === Cargar variables de entorno ===
-if [ -f "$ENV_FILE" ]; then
-  source "$ENV_FILE"
-else
-  echo "ERROR: No se encontró el archivo de entorno $ENV_FILE."
-  exit 1
+# === Load environment variables from /opt/azure/venv (if not already set) ===
+if [ -f "$VENV_PATH" ]; then
+  echo "[VAULT] Cargando variables desde $VENV_PATH"
+  # shellcheck disable=SC1090
+  source "$VENV_PATH"
 fi
 
-# === Verificar requisitos ===
+# === Override VAULT_ADDR if passed as param ===
+if [[ -n "$INPUT_VAULT_ADDR" ]]; then
+  export VAULT_ADDR="$INPUT_VAULT_ADDR"
+fi
+
+# === Validate all required vars ===
 if [[ -z "$VAULT_ADDR" || -z "$ROLE_ID" || -z "$SECRET_ID" ]]; then
-  echo "ERROR: Debes exportar las variables VAULT_ADDR, ROLE_ID y SECRET_ID antes de continuar."
-  echo "Ejemplo:"
-  echo "  export VAULT_ADDR=https://vault.miempresa.com"
-  echo "  export ROLE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-  echo "  export SECRET_ID=yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
+  echo "[VAULT] ERROR: Faltan VAULT_ADDR, ROLE_ID o SECRET_ID."
+  echo "Puedes pasar VAULT_ADDR como argumento:"
+  echo "  ./vault_install.sh https://vault.miempresa.com"
   exit 1
 fi
 
-echo "[VAULT] Instalando Vault CLI versión $VAULT_VERSION para Linux..."
+echo "[VAULT] Usando VAULT_ADDR: $VAULT_ADDR"
 
-# === Verificar si ya está instalado ===
-if command -v vault >/dev/null; then
-  echo "[VAULT] Vault ya está instalado: $(vault version)"
-else
-  echo "[VAULT] Descargando desde releases.hashicorp.com..."
-  curl -fsSL "https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip" -o vault.zip
-  unzip -o vault.zip
-  sudo install -o root -g root -m 0755 vault "$VAULT_BIN"
-  rm -f vault vault.zip
-  echo "[VAULT] Vault instalado correctamente en $VAULT_BIN"
+# === Install jq if needed ===
+if ! command -v jq &> /dev/null; then
+  echo "[VAULT] Instalando jq..."
+  sudo apt update && sudo apt install -y jq
 fi
 
-# === Login con AppRole ===
-echo "[VAULT] Autenticando con AppRole en $VAULT_ADDR..."
+# === Detect latest Vault version ===
+echo "[VAULT] Detectando última versión de Vault..."
+LATEST_VERSION=$(curl -s https://checkpoint-api.hashicorp.com/v1/check/vault | jq -r .current_version)
+
+if [[ -z "$LATEST_VERSION" ]]; then
+  echo "[VAULT] ERROR: No se pudo obtener la última versión."
+  exit 1
+fi
+
+echo "[VAULT] Última versión disponible: $LATEST_VERSION"
+
+# === Install Vault CLI if not installed ===
+if ! command -v vault &> /dev/null; then
+  echo "[VAULT] Instalando Vault CLI versión $LATEST_VERSION..."
+  curl -fsSL "https://releases.hashicorp.com/vault/${LATEST_VERSION}/vault_${LATEST_VERSION}_linux_amd64.zip" -o vault.zip
+  unzip vault.zip
+  sudo install -o root -g root -m 0755 vault /usr/local/bin/vault
+  rm -f vault vault.zip
+else
+  echo "[VAULT] Vault ya instalado: $(vault version)"
+fi
+
+# === Authenticate via AppRole ===
+echo "[VAULT] Autenticando con AppRole..."
 LOGIN_RESPONSE=$(curl -s --request POST \
   --data "{\"role_id\": \"$ROLE_ID\", \"secret_id\": \"$SECRET_ID\"}" \
   "$VAULT_ADDR/v1/auth/approle/login")
@@ -66,8 +82,8 @@ LOGIN_RESPONSE=$(curl -s --request POST \
 VAULT_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r .auth.client_token)
 
 if [[ "$VAULT_TOKEN" == "null" || -z "$VAULT_TOKEN" ]]; then
-  echo "[VAULT] ERROR: No se pudo obtener un token válido desde AppRole."
-  echo "Respuesta de Vault:"
+  echo "[VAULT] ERROR: Falló la autenticación con AppRole."
+  echo "Respuesta:"
   echo "$LOGIN_RESPONSE"
   exit 1
 fi
@@ -75,8 +91,8 @@ fi
 export VAULT_TOKEN
 echo "export VAULT_TOKEN=$VAULT_TOKEN" >> ~/.bashrc
 
-# === Verificar acceso con token obtenido ===
-echo "[VAULT] Verificando conexión con token..."
+# === Verify connection ===
+echo "[VAULT] Verificando conexión con Vault..."
 vault status
 
-echo "[VAULT] Autenticación con AppRole exitosa. Token cargado en VAULT_TOKEN."
+echo "[VAULT] Vault instalado y autenticado correctamente."
