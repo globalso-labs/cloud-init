@@ -19,8 +19,7 @@
 #
 set -e
 
-# === Optional override via parameter ===
-INPUT_VAULT_ADDR="$1"
+# === CONFIGURATION ===
 VENV_PATH="/opt/azure/venv"
 
 # === Load environment variables from /opt/azure/venv (if not already set) ===
@@ -30,16 +29,9 @@ if [ -f "$VENV_PATH" ]; then
   source "$VENV_PATH"
 fi
 
-# === Override VAULT_ADDR if passed as param ===
-if [[ -n "$INPUT_VAULT_ADDR" ]]; then
-  export VAULT_ADDR="https://$INPUT_VAULT_ADDR"
-fi
-
 # === Validate all required vars ===
 if [[ -z "$VAULT_ADDR" || -z "$ROLE_ID" || -z "$SECRET_ID" ]]; then
   echo "[VAULT] ERROR: Faltan VAULT_ADDR, ROLE_ID o SECRET_ID."
-  echo "Puedes pasar VAULT_ADDR como argumento:"
-  echo "  ./vault_install.sh https://vault.miempresa.com"
   exit 1
 fi
 
@@ -90,9 +82,6 @@ if [[ "$VAULT_TOKEN" == "null" || -z "$VAULT_TOKEN" ]]; then
   echo "$LOGIN_RESPONSE"
   exit 1
 fi
-
-export VAULT_TOKEN
-echo "export VAULT_TOKEN=$VAULT_TOKEN" >> ~/.bashrc
 
 # === Verify connection ===
 echo "[VAULT] Verificando conexión con Vault..."
