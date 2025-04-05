@@ -19,15 +19,15 @@
 
 set -e
 
-DOMAIN="$1"
+VAULT_PATH="$1"
+DOMAIN=$(basename "$VAULT_PATH")
 
-if [ -z "$DOMAIN" ]; then
-  echo "Uso: ssl.sh <dominio.com>"
+if [ -z "$VAULT_PATH" ]; then
+  echo "Uso: ssl.sh <VAULT_PATH>"
   exit 1
 fi
 
 # === Rutas y config ===
-VAULT_PATH="idbi/certificates/nginx/$DOMAIN"
 CERT_DIR="/etc/ssl/$DOMAIN"
 NGINX_CONF="/etc/nginx/conf.d/default.conf"
 
