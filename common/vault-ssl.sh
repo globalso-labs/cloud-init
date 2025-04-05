@@ -104,59 +104,81 @@ sudo chmod 644 "$CERT_DIR/fullchain.pem"
 # === Crear archivo de configuración NGINX ===
 echo "[SSL] Configurando NGINX..."
 
-# === Ensure NGINX config exists ===
 if [ ! -f "$NGINX_CONF" ]; then
   echo "[SSL] No existe $NGINX_CONF. Creando archivo base..."
   sudo tee "$NGINX_CONF" > /dev/null <<EOF
+server {
+    listen 443 ssl;
+    server_name $DOMAIN;
+
+    ssl_certificate     $CERT_DIR/fullchain.pem;
+    ssl_certificate_key $CERT_DIR/privkey.pem;
+
+    root /var/www/html;
+    index index.html;
+
+    location / {
+        try_files \$uri \$uri/ =404;
+    }
+}
+
 server {
     listen 80;
     server_name $DOMAIN;
     return 301 https://\$host\$request_uri;
 }
-
-server {
-    listen 443 ssl;
-    server_name $DOMAIN;
-
-    ssl_certificate     $CERT_DIR/fullchain.pem;
-    ssl_certificate_key $CERT_DIR/privkey.pem;
-
-    root /var/www/html;
-    index index.html;
-
-    location / {
-        try_files \$uri \$uri/ =404;
-    }
-}
 EOF
+
 else
-  echo "[SSL] Modificando configuración SSL existente en $NGINX_CONF..."
+  echo "[SSL] Archivo $NGINX_CONF encontrado. Verificando configuración..."
 
-  # Update or insert SSL lines in the 443 block
-  sudo sed -i "/listen 443 ssl;/!b;n;c\    ssl_certificate     $CERT_DIR/fullchain.pem;" "$NGINX_CONF" || true
-  sudo sed -i "/ssl_certificate_key /c\    ssl_certificate_key $CERT_DIR/privkey.pem;" "$NGINX_CONF" || true
-
-  # If no 443 block exists, append one
   if ! grep -q "listen 443 ssl;" "$NGINX_CONF"; then
-    echo "[SSL] Añadiendo bloque server para HTTPS..."
+    echo "[SSL] No existe bloque 443. Promoviendo bloque 80 a HTTPS..."
+
+    # === Reemplazar el primer bloque 80 con uno 443 + SSL ===
+    sudo awk -v cert="$CERT_DIR/fullchain.pem" -v key="$CERT_DIR/privkey.pem" -v domain="$DOMAIN" '
+    BEGIN { in_server=0; replaced=0 }
+    {
+      if ($0 ~ /server\s*{/) in_server=1
+      if (in_server && $0 ~ /listen 80/) {
+        print "    listen 443 ssl;"
+        print "    ssl_certificate     " cert ";"
+        print "    ssl_certificate_key " key ";"
+        next
+      }
+      if (in_server && $0 ~ /}/) {
+        in_server=0
+        replaced=1
+      }
+      print
+    }
+    END {
+      if (replaced == 0) {
+        print "[SSL] ERROR: No se pudo encontrar bloque server { listen 80; }"
+        exit 1
+      }
+    }
+    ' "$NGINX_CONF" | sudo tee "$NGINX_CONF.tmp" > /dev/null
+
+    sudo mv "$NGINX_CONF.tmp" "$NGINX_CONF"
+
+    echo "[SSL] Añadiendo bloque nuevo para redirección HTTP a HTTPS..."
+
     sudo tee -a "$NGINX_CONF" > /dev/null <<EOF
 
 server {
-    listen 443 ssl;
+    listen 80;
     server_name $DOMAIN;
-
-    ssl_certificate     $CERT_DIR/fullchain.pem;
-    ssl_certificate_key $CERT_DIR/privkey.pem;
-
-    root /var/www/html;
-    index index.html;
-
-    location / {
-        try_files \$uri \$uri/ =404;
-    }
+    return 301 https://\$host\$request_uri;
 }
 EOF
+  else
+    echo "[SSL] Ya existe configuración HTTPS. Actualizando certificados SSL..."
+
+    sudo sed -i "/ssl_certificate /c\    ssl_certificate     $CERT_DIR/fullchain.pem;" "$NGINX_CONF"
+    sudo sed -i "/ssl_certificate_key /c\    ssl_certificate_key $CERT_DIR/privkey.pem;" "$NGINX_CONF"
   fi
+fi
 
 # === Validar y recargar NGINX ===
 echo "[SSL] Verificando configuración NGINX..."
