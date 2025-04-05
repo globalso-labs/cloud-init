@@ -52,11 +52,14 @@ if ! command -v jq &> /dev/null; then
 fi
 
 # === Detect latest Vault version ===
-echo "[VAULT] Detectando última versión de Vault..."
-LATEST_VERSION=$(curl -s https://checkpoint-api.hashicorp.com/v1/check/vault | jq -r .current_version)
+echo "[VAULT] Obteniendo última versión desde releases.hashicorp.com..."
+
+LATEST_VERSION=$(curl -s https://releases.hashicorp.com/vault/ | \
+  grep -oP '/vault/\K[0-9]+\.[0-9]+\.[0-9]+' | \
+  sort -V | tail -n1)
 
 if [[ -z "$LATEST_VERSION" ]]; then
-  echo "[VAULT] ERROR: No se pudo obtener la última versión."
+  echo "[VAULT] ERROR: No se pudo determinar la última versión de Vault."
   exit 1
 fi
 
