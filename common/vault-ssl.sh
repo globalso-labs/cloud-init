@@ -51,11 +51,14 @@ fi
 
 echo "[VAULT] Usando VAULT_ADDR: $VAULT_ADDR"
 
-
 # === Authenticate via AppRole ===
-echo "[VAULT] Autenticando con AppRole..."
+echo "[VAULT] Autenticando con AppRole (TTL = 5 minutos)..."
 LOGIN_RESPONSE=$(curl -s --request POST \
-  --data "{\"role_id\": \"$ROLE_ID\", \"secret_id\": \"$SECRET_ID\"}" \
+  --data "{
+    \"role_id\": \"$ROLE_ID\",
+    \"secret_id\": \"$SECRET_ID\",
+    \"ttl\": \"300s\"
+  }" \
   "$VAULT_ADDR/v1/auth/approle/login")
 
 VAULT_TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r .auth.client_token)
