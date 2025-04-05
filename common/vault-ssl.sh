@@ -29,8 +29,7 @@ fi
 # === Rutas y config ===
 VAULT_PATH="idbi/certificates/nginx/$DOMAIN"
 CERT_DIR="/etc/ssl/$DOMAIN"
-NGINX_CONF="/etc/nginx/sites-available/$DOMAIN"
-NGINX_LINK="/etc/nginx/sites-enabled/$DOMAIN"
+NGINX_CONF="/etc/nginx/conf.d/default.conf"
 
 # === CONFIGURATION ===
 VENV_PATH="/opt/azure/venv"
