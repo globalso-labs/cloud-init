@@ -32,7 +32,7 @@ fi
 
 # === Override VAULT_ADDR if passed as param ===
 if [[ -n "$INPUT_VAULT_ADDR" ]]; then
-  export VAULT_ADDR="$INPUT_VAULT_ADDR"
+  export VAULT_ADDR="https://$INPUT_VAULT_ADDR"
 fi
 
 # === Validate all required vars ===
