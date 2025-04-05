@@ -80,6 +80,7 @@ EOF
 # === UPDATE SSHD CONFIG ===
 echo "[SSH] Updating /etc/ssh/sshd_config..."
 sudo sed -i 's/^ChallengeResponseAuthentication.*/ChallengeResponseAuthentication yes/' /etc/ssh/sshd_config
+sudo sed -i 's/^KbdInteractiveAuthentication.*/KbdInteractiveAuthentication yes/' /etc/ssh/sshd_config
 sudo sed -i 's/^UsePAM.*/UsePAM yes/' /etc/ssh/sshd_config
 sudo sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
 
