@@ -67,9 +67,16 @@ if [[ "$VAULT_TOKEN" == "null" || -z "$VAULT_TOKEN" ]]; then
   exit 1
 fi
 
+# === Exportar token ===
+export VAULT_TOKEN
+
 # === Verify connection ===
 echo "[VAULT] Verificando conexión con Vault..."
 vault status
+
+# === Verificar token ===
+echo "[VAULT] Verificando token..."
+vault token lookup
 
 # === Obtener certificados desde Vault KV v2 ===
 echo "[SSL] Obteniendo certificado desde Vault ($VAULT_PATH)..."
