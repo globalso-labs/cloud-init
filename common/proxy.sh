@@ -7,38 +7,40 @@
 # Copyright (c) 2025.
 # Last modified at Fri, 4 Apr 2025 13:42:07 -0500 by nick.
 #
-# DISCLAIMER: This software is provided "as is" without warranty of any kind, either expressed or implied. The entire
-# risk as to the quality and performance of the software is with you. In no event will the author be liable for any
-# damages, including any general, special, incidental, or consequential damages arising out of the use or inability
-# to use the software (that includes, but not limited to, loss of data, data being rendered inaccurate, or losses
-# sustained by you or third parties, or a failure of the software to operate with any other programs), even if the
-# author has been advised of the possibility of such damages.
-# If a license file is provided with this software, all use of this software is governed by the terms and conditions
-# set forth in that license file. If no license file is provided, no rights are granted to use, modify, distribute,
-# or otherwise exploit this software.
-#
 
 set -e
 
-echo "[PROXY] Setting up NGINX as a reverse proxy to localhost:8080"
+# === Parámetros con valores por defecto ===
+PORT="${1:-8080}"
+SERVER_NAME="${2:-default_server}"
 
-# Ensure NGINX is installed
+# === Normalizar nombre de archivo (sin espacios ni caracteres raros) ===
+FILENAME=$(echo "$SERVER_NAME" | tr -cd 'a-zA-Z0-9._-' )
+
+CONF_PATH="/etc/nginx/sites-available/${FILENAME}.conf"
+ENABLED_PATH="/etc/nginx/sites-enabled/${FILENAME}.conf"
+
+echo "[PROXY] Configurando NGINX como proxy reverso a localhost:$PORT con server_name '$SERVER_NAME'..."
+
+# === Instalar NGINX si no está presente ===
 if ! command -v nginx >/dev/null 2>&1; then
-    echo "[PROXY] NGINX not found. Installing..."
+    echo "[PROXY] NGINX no encontrado. Instalando..."
     sudo apt update
     sudo apt install -y nginx
     sudo systemctl enable nginx
     sudo systemctl start nginx
 fi
 
-# Create proxy configuration
-sudo tee /etc/nginx/conf.d/default.conf > /dev/null <<EOF
+# === Crear archivo de configuración ===
+echo "[PROXY] Creando configuración en $CONF_PATH..."
+
+sudo tee "$CONF_PATH" > /dev/null <<EOF
 server {
-    listen 80 default_server;
-    server_name _;
+    listen 80;
+    server_name $SERVER_NAME;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://localhost:$PORT;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -47,15 +49,17 @@ server {
 }
 EOF
 
-# Remove default site if exists
-sudo rm -f /etc/nginx/sites-enabled/default
-sudo rm -f /etc/nginx/sites-available/default
+# === Activar el sitio ===
+sudo ln -sf "$CONF_PATH" "$ENABLED_PATH"
 
-# Test and reload NGINX
-echo "[PROXY] Testing NGINX configuration..."
+# === Eliminar sitio por defecto si existe ===
+sudo rm -f /etc/nginx/sites-enabled/default /etc/nginx/sites-available/default
+
+# === Verificar y recargar NGINX ===
+echo "[PROXY] Verificando configuración..."
 sudo nginx -t
 
-echo "[PROXY] Reloading NGINX..."
+echo "[PROXY] Recargando NGINX..."
 sudo systemctl reload nginx
 
-echo "[PROXY] Reverse proxy setup complete! Port 80 → 8080"
+echo "✅ NGINX configurado. Puerto 80 → localhost:$PORT (site: $FILENAME)"
