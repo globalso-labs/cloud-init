@@ -58,13 +58,11 @@ mariadb --version
 echo "Descargando archivo de configuración de MariaDB..."
 sudo mkdir -p /etc/mysql/mariadb.conf.d
 
-sudo curl -o /etc/mysql/mariadb.conf.d/99-custom.conf https://raw.githubusercontent.com/globalso-labs/cloud-init/main/settings/mariadb/99-custom.conf
-sudo chmod 644 /etc/mysql/mariadb.conf.d/99-custom.conf
-sudo chown mysql:mysql /etc/mysql/mariadb.conf.d/99-custom.conf
+sudo curl -o /etc/mysql/mariadb.conf.d/99-custom.cnf https://raw.githubusercontent.com/globalso-labs/cloud-init/main/settings/mariadb/99-custom.cnf
+sudo chmod 644 /etc/mysql/mariadb.conf.d/99-custom.cnf
 
-sudo curl -o /etc/mysql/mariadb.conf.d/99-replica.conf https://raw.githubusercontent.com/globalso-labs/cloud-init/main/settings/mariadb/99-replica.conf
-sudo chmod 644 /etc/mysql/mariadb.conf.d/99-replica.conf
-sudo chown mysql:mysql /etc/mysql/mariadb.conf.d/99-replica.conf
+sudo curl -o /etc/mysql/mariadb.conf.d/99-replica.cnf https://raw.githubusercontent.com/globalso-labs/cloud-init/main/settings/mariadb/99-replica.cnf
+sudo chmod 644 /etc/mysql/mariadb.conf.d/99-replica.cnf
 
 
 ### Configuración de límites de archivos abiertos (nofile)
@@ -106,22 +104,6 @@ sudo systemctl restart mariadb || sudo systemctl restart mysql
 # 5. Verificar desde MySQL
 echo "Verificando open_files_limit desde MariaDB:"
 mysql -e "SHOW VARIABLES LIKE 'open_files_limit';"
-
-
-###  Crear usuario db_owner
-
-read -s -p "Ingresa la contraseña para el usuario 'db_owner': " DB_PASSWORD
-echo
-
-echo "Conectando a MariaDB para crear el usuario..."
-
-mysql -u root <<EOF
-CREATE USER IF NOT EXISTS 'db_owner'@'%' IDENTIFIED BY '${DB_PASSWORD}';
-GRANT ALL PRIVILEGES ON *.* TO 'db_owner'@'%' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
-EOF
-
-echo "Usuario 'db_owner' creado con éxito."
 
 ### Configuración de Performance Schema
 
