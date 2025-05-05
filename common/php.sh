@@ -1,34 +1,18 @@
 #!/bin/bash
 
-#
-# cloud-init
-# nginx.sh
-# This file is part of cloud-init.
-# Copyright (c) 2025.
-# Last modified at Fri, 4 Apr 2025 12:00:09 -0500 by nick.
-#
-# DISCLAIMER: This software is provided "as is" without warranty of any kind, either expressed or implied. The entire
-# risk as to the quality and performance of the software is with you. In no event will the author be liable for any
-# damages, including any general, special, incidental, or consequential damages arising out of the use or inability
-# to use the software (that includes, but not limited to, loss of data, data being rendered inaccurate, or losses
-# sustained by you or third parties, or a failure of the software to operate with any other programs), even if the
-# author has been advised of the possibility of such damages.
-# If a license file is provided with this software, all use of this software is governed by the terms and conditions
-# set forth in that license file. If no license file is provided, no rights are granted to use, modify, distribute,
-# or otherwise exploit this software.
-#
+# Check if version parameter is provided
+if [ -z "$1" ]; then
+    echo "Usage: $0 <php-version>"
+    echo "Example: $0 8.2"
+    exit 1
+fi
+
+PHP_VERSION="$1"
+PHP_FPM_PORT="9000"
 
 set -e
 
-PHP_VERSION="$1"
-
-if [ -z "$PHP_VERSION" ]; then
-  echo "[PHP] ERROR: No version provided."
-  echo "Usage: php.sh <version>"
-  exit 1
-fi
-
-echo "[PHP-FPM] Installing PHP ${PHP_VERSION} on $(lsb_release -ds) and configuring with NGINX..."
+echo "[PHP-FPM] Installing PHP ${PHP_VERSION} and configuring with NGINX using TCP proxy..."
 
 # Add PHP repository
 sudo apt install -y software-properties-common
@@ -59,6 +43,20 @@ if ! command -v nginx &> /dev/null; then
     sudo apt install -y nginx
 fi
 
+# Configure PHP-FPM to listen on TCP port
+sudo tee /etc/php/${PHP_VERSION}/fpm/pool.d/www.conf > /dev/null <<EOF
+[www]
+user = www-data
+group = www-data
+listen = 127.0.0.1:${PHP_FPM_PORT}
+listen.allowed_clients = 127.0.0.1
+pm = dynamic
+pm.max_children = 5
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+EOF
+
 # Create web root directory
 sudo mkdir -p /var/app/current
 sudo chown -R www-data:www-data /var/app/current
@@ -69,8 +67,12 @@ sudo tee /var/app/current/index.php > /dev/null <<EOF
 phpinfo();
 EOF
 
-# Configure NGINX with PHP-FPM
+# Configure NGINX with PHP-FPM TCP proxy
 sudo tee /etc/nginx/conf.d/default.conf > /dev/null <<EOF
+upstream php-fpm {
+    server 127.0.0.1:${PHP_FPM_PORT};
+}
+
 server {
     listen 80 default_server;
     server_name _;
@@ -83,9 +85,24 @@ server {
 
     location ~ \.php$ {
         include fastcgi_params;
-        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+        fastcgi_pass php-fpm;
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+        fastcgi_param DOCUMENT_ROOT \$document_root;
         fastcgi_index index.php;
+
+        # FastCGI cache settings
+        fastcgi_buffers 16 16k;
+        fastcgi_buffer_size 32k;
+
+        # Timeouts
+        fastcgi_connect_timeout 60s;
+        fastcgi_send_timeout 60s;
+        fastcgi_read_timeout 60s;
+    }
+
+    # Deny access to .htaccess files
+    location ~ /\.ht {
+        deny all;
     }
 }
 EOF
@@ -94,5 +111,11 @@ EOF
 sudo systemctl restart php${PHP_VERSION}-fpm
 sudo systemctl restart nginx
 
-echo "[PHP-FPM] Setup complete. PHP ${PHP_VERSION}-FPM and NGINX have been configured."
+echo "[PHP-FPM] Setup complete. PHP ${PHP_VERSION}-FPM configured on TCP port ${PHP_FPM_PORT}"
 echo "You can test the installation by visiting http://localhost/index.php"
+
+# Display status of services
+echo -e "\nChecking service status:"
+sudo systemctl status php${PHP_VERSION}-fpm --no-pager
+echo -e "\n"
+sudo systemctl status nginx --no-pager
