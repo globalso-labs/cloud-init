@@ -82,16 +82,13 @@ echo "Detected Architecture: $ARCH"
 echo "Latest Version: $VERSION"
 echo "Downloading from: $DOWNLOAD_URL"
 
-# Create installation directory
-sudo mkdir -p /opt/agent
-
 # Download and extract
 TMP_FILE="/tmp/cloud-handler.tar.gz"
 curl -L "$DOWNLOAD_URL" -o "$TMP_FILE"
 TMP_FOLDER="/tmp/cloud-handler"
 mkdir -p "$TMP_FOLDER"
 tar -xzf "$TMP_FILE" -C "$TMP_FOLDER"
-sudo cp "$TMP_FOLDER/cloud-handler" /sbin/cloud-handler
+sudo cp -f "$TMP_FOLDER/cloud-handler" /sbin/cloud-handler
 sudo chmod +x /sbin/cloud-handler
 
 # Clean up
@@ -100,5 +97,5 @@ rm -rf "$TMP_FOLDER"
 
 echo "Cloud Handler installed successfully. Installing complementary packages..."
 # Installing complementary packages
-sudo cloud-handler install service
-sudo cloud-handler install telemetry
+sudo cloud-handler install service -vvvv
+sudo cloud-handler install telemetry -vvvv
