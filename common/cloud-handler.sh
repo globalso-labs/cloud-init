@@ -80,14 +80,14 @@ DOWNLOAD_URL="https://packages.globalso.dev/api/globalso-labs/cloud-handler/rele
 echo "Detected OS: $OS_ID"
 echo "Detected Architecture: $ARCH"
 echo "Latest Version: $VERSION"
-echo "Downloading from: DOWNLOAD_URL"
+echo "Downloading from: $DOWNLOAD_URL"
 
 # Create installation directory
 sudo mkdir -p /opt/agent
 
 # Download and extract
 TMP_FILE="/tmp/cloud-handler.tar.gz"
-curl -L "DOWNLOAD_URL" -o "$TMP_FILE"
+curl -L "$DOWNLOAD_URL" -o "$TMP_FILE"
 TMP_FOLDER="/tmp/cloud-handler"
 mkdir -p "$TMP_FOLDER"
 tar -xzf "$TMP_FILE" -C "$TMP_FOLDER"
