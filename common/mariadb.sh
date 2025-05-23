@@ -51,7 +51,7 @@ sudo systemctl start mariadb
 
 # Verificación final
 echo
-echo "✅ MariaDB instalado correctamente:"
+echo " MariaDB instalado correctamente:"
 mariadb --version
 
 ### Copiar archivo de configuración
@@ -64,6 +64,13 @@ sudo chmod 644 /etc/mysql/mariadb.conf.d/99-custom.cnf
 sudo curl -o /etc/mysql/mariadb.conf.d/99-replica.cnf https://raw.githubusercontent.com/globalso-labs/cloud-init/main/settings/mariadb/99-replica.cnf
 sudo chmod 644 /etc/mysql/mariadb.conf.d/99-replica.cnf
 
+### Esperar por confirmación del usuario para continuar
+echo "Por favor, revise el archivo de configuración en /etc/mysql/mariadb.conf.d/99-custom.cnf y confirme que los parámetros son correctos."
+read -p "¿Desea continuar con la configuración de MariaDB? (s/n): " confirm
+if [[ "$confirm" != "s" && "$confirm" != "S" ]]; then
+  echo "Configuración cancelada por el usuario."
+  exit 1
+fi
 
 ### Configuración de límites de archivos abiertos (nofile)
 
@@ -96,6 +103,10 @@ LimitNOFILE=$LIMIT
 EOF
 
 # 4. Recargar systemd y reiniciar MariaDB
+
+echo "Reiniciando archivos por defecto de MariaDB..."
+sudo mariadb-install-db --user=mysql
+
 echo "Recargando systemd y reiniciando MariaDB..."
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
