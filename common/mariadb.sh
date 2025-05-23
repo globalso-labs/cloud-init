@@ -144,8 +144,23 @@ EOF
 
 echo "Archivo de configuración creado en $CONFIG_FILE"
 
+CONF_FILE="/etc/mysql/mariadb.conf.d/50-server.cnf"
+
+if grep -q "^[[:space:]]*bind-address[[:space:]]*=" "$CONF_FILE"; then
+  echo "Comentando línea bind-address en $CONF_FILE..."
+  sudo sed -i 's/^[[:space:]]*bind-address[[:space:]]*=/# bind-address =/' "$CONF_FILE"
+else
+  echo "No se encontró una línea activa bind-address en $CONF_FILE, no se modificó nada."
+fi
+
+
 # Reiniciar el servicio de MariaDB
 echo "Reiniciando MariaDB..."
 systemctl restart mariadb
 
 echo "MariaDB reiniciado. Performance Schema debería estar habilitado."
+
+echo "Ejecutando scripts posteriores a la instalación..."
+# Ejecutar el script de seguridad de MariaDB
+sudo mysql_secure_installation
+
