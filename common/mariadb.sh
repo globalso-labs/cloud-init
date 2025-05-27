@@ -128,43 +128,13 @@ sudo systemctl restart mariadb || sudo systemctl restart mysql
 echo "Verificando open_files_limit desde MariaDB:"
 mysql -e "SHOW VARIABLES LIKE 'open_files_limit';"
 
-### Configuración de Performance Schema
-
-# Ruta del nuevo archivo de configuración
-CONFIG_FILE="/etc/mysql/mariadb.conf.d/99-percona.cnf"
-
-# Crear el archivo si no existe
-if [ -f "$CONFIG_FILE" ]; then
-  echo "El archivo $CONFIG_FILE ya existe. No se realizarán cambios."
-  exit 1
-fi
-
-cat <<EOF > "$CONFIG_FILE"
-[mysqld]
-performance_schema=ON
-performance_schema_instrument='%=on'
-performance-schema-consumer-events-statements-current=ON
-performance-schema-consumer-events-statements-history=ON
-performance-schema-consumer-events-statements-history-long=ON
-performance-schema-consumer-events-waits-current=ON
-performance-schema-consumer-events-waits-history=ON
-performance-schema-consumer-events-waits-history-long=ON
-performance-schema-consumer-statements-digest=ON
-
-innodb_monitor_enable=all
-EOF
-
-echo "Archivo de configuración creado en $CONFIG_FILE"
-
-CONF_FILE="/etc/mysql/mariadb.conf.d/50-server.cnf"
-
+# 6. Habilitar acceso remoto
 if grep -q "^[[:space:]]*bind-address[[:space:]]*=" "$CONF_FILE"; then
   echo "Comentando línea bind-address en $CONF_FILE..."
   sudo sed -i 's/^[[:space:]]*bind-address[[:space:]]*=/# bind-address =/' "$CONF_FILE"
 else
   echo "No se encontró una línea activa bind-address en $CONF_FILE, no se modificó nada."
 fi
-
 
 # Reiniciar el servicio de MariaDB
 echo "Reiniciando MariaDB..."
