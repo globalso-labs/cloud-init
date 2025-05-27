@@ -90,7 +90,7 @@ PMM_USER="pmm"
 PMM_PASSWORD="HilwR7Jr7ttzVaXo1hWVy" # This is safe because it is only used locally and not exposed externally.
 
 # Execute SQL commands
-mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -h "$MYSQL_HOST" <<EOF
+sudo mysql  <<EOF
 CREATE USER '${PMM_USER}'@'::1' IDENTIFIED BY '${PMM_PASSWORD}' WITH MAX_USER_CONNECTIONS 10;
 GRANT SELECT, PROCESS, REPLICATION CLIENT, RELOAD ON *.* TO '${PMM_USER}'@'::1';
 CREATE USER '${PMM_USER}'@'127.0.0.1' IDENTIFIED BY '${PMM_PASSWORD}' WITH MAX_USER_CONNECTIONS 10;
