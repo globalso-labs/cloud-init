@@ -99,7 +99,7 @@ EOF
 echo "[PMM] Monitoreando instancias locales de MySQL/MariaDB/Percona..."
 # Intenta registrar cualquier instancia "mysql" local
 sudo pmm-admin add mysql --username=pmm --password="$PMM_PASSWORD" \
-    --query-source=perfschema --service-name=$INSTANCE_NAME-mariadb --port=3306
+    --query-source=perfschema --service-name="$INSTANCE_NAME"-mariadb --port=3306
 
 echo "
 [PMM] Configuración completada.
