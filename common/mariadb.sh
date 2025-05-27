@@ -129,6 +129,7 @@ echo "Verificando open_files_limit desde MariaDB:"
 mysql -e "SHOW VARIABLES LIKE 'open_files_limit';"
 
 # 6. Habilitar acceso remoto
+CONF_FILE="/etc/mysql/mariadb.conf.d/50-server.cnf"
 if grep -q "^[[:space:]]*bind-address[[:space:]]*=" "$CONF_FILE"; then
   echo "Comentando línea bind-address en $CONF_FILE..."
   sudo sed -i 's/^[[:space:]]*bind-address[[:space:]]*=/# bind-address =/' "$CONF_FILE"
@@ -141,8 +142,4 @@ echo "Reiniciando MariaDB..."
 systemctl restart mariadb
 
 echo "MariaDB reiniciado. Performance Schema debería estar habilitado."
-
-echo "Ejecutando scripts posteriores a la instalación..."
-# Ejecutar el script de seguridad de MariaDB
-sudo mysql_secure_installation
 
