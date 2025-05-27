@@ -26,7 +26,7 @@ if [ -z "$1" ]; then
     exit 1
 fi
 
-PMM_SERVER="https://$1:443" # PMM Server URL
+PMM_SERVER="https://admin:$1:443" # PMM Server URL
 INSTANCE_NAME="${2:-$(hostname)}"
 
 echo "[PMM] Instalando Percona Monitoring and Management Client..."
@@ -35,8 +35,9 @@ echo "[PMM] Instalando Percona Monitoring and Management Client..."
 if ! command -v pmm-admin >/dev/null 2>&1; then
     wget https://repo.percona.com/apt/percona-release_latest.generic_all.deb
     sudo dpkg -i percona-release_latest.generic_all.deb
-    sudo apt-get update
-    sudo apt-get install -y pmm2-client
+    sudo percona-release enable pmm3-client
+    sudo apt-get install -y pmm-client
+    sudo apt-get install -y percona-toolkit
     rm percona-release_latest.generic_all.deb || true
 else
     echo "[PMM] pmm2-client ya instalado."
@@ -45,9 +46,10 @@ fi
 echo "[PMM] Configurando cliente para servidor PMM: $PMM_SERVER..."
 
 # Registrar el cliente con el servidor PMM
-sudo pmm-admin config  --server-url="$PMM_SERVER" --force --client-name="$INSTANCE_NAME"
+sudo pmm-admin config  --server-url="$PMM_SERVER" --force
 
 echo "[PMM] Configuración del mariadb..."
+
 # Ruta del nuevo archivo de configuración
 CONFIG_FILE="/etc/mysql/mariadb.conf.d/99-percona.cnf"
 
@@ -99,7 +101,7 @@ EOF
 echo "[PMM] Monitoreando instancias locales de MySQL/MariaDB/Percona..."
 # Intenta registrar cualquier instancia "mysql" local
 sudo pmm-admin add mysql --username="$PMM_USER" --password="$PMM_PASSWORD" \
-    --query-source=perfschema --service-name=$INSTANCE_NAME --port=3306
+    --query-source=perfschema --service-name=$INSTANCE_NAME-mariadb --port=3306
 
 echo "
 [PMM] Configuración completada.
