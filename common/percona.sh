@@ -85,27 +85,25 @@ echo "MariaDB reiniciado. Performance Schema debería estar habilitado."
 # Crear usuario de monitoreo si no existe
 echo "[PMM] Creando usuario de monitoreo 'pmm' en MySQL/MariaDB..."
 # Define PMM user and password
-PMM_USER="pmm"
 PMM_PASSWORD="HilwR7Jr7ttzVaXo1hWVy" # This is safe because it is only used locally and not exposed externally.
 
 # Execute SQL commands
 sudo mysql  <<EOF
-CREATE USER '${PMM_USER}'@'::1' IDENTIFIED BY '${PMM_PASSWORD}' WITH MAX_USER_CONNECTIONS 10;
-GRANT SELECT, PROCESS, REPLICATION CLIENT, RELOAD ON *.* TO '${PMM_USER}'@'::1';
-CREATE USER '${PMM_USER}'@'127.0.0.1' IDENTIFIED BY '${PMM_PASSWORD}' WITH MAX_USER_CONNECTIONS 10;
-GRANT SELECT, PROCESS, REPLICATION CLIENT, RELOAD ON *.* TO '${PMM_USER}'@'127.0.0.1';
+CREATE USER IF NOT EXISTS 'pmm'@'::1' IDENTIFIED BY '${PMM_PASSWORD}' WITH MAX_USER_CONNECTIONS 10;
+GRANT SELECT, PROCESS, REPLICATION CLIENT, RELOAD ON *.* TO 'pmm'@'::1';
+CREATE USER IF NOT EXISTS 'pmm'@'127.0.0.1' IDENTIFIED BY '${PMM_PASSWORD}' WITH MAX_USER_CONNECTIONS 10;
+GRANT SELECT, PROCESS, REPLICATION CLIENT, RELOAD ON *.* TO 'pmm'@'127.0.0.1';
 FLUSH PRIVILEGES;
 EOF
 
 echo "[PMM] Monitoreando instancias locales de MySQL/MariaDB/Percona..."
 # Intenta registrar cualquier instancia "mysql" local
-sudo pmm-admin add mysql --username="$PMM_USER" --password="$PMM_PASSWORD" \
+sudo pmm-admin add mysql --username=pmm --password="$PMM_PASSWORD" \
     --query-source=perfschema --service-name=$INSTANCE_NAME-mariadb --port=3306
 
 echo "
 [PMM] Configuración completada.
-Este nodo/servidor ahora envía métricas a: http://$PMM_SERVER:8080/
-Instancias monitoreadas: puertos 3306 y 3307, usuario root, sin password (ajuste según su seguridad real).
+Este nodo/servidor ahora envía métricas.
 Puede visualizar dashboards en el server PMM (Prometheus/Grafana).
 "
 
