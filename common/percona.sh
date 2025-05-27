@@ -56,10 +56,8 @@ CONFIG_FILE="/etc/mysql/mariadb.conf.d/99-percona.cnf"
 # Crear el archivo si no existe
 if [ -f "$CONFIG_FILE" ]; then
   echo "El archivo $CONFIG_FILE ya existe. No se realizarán cambios."
-  exit 1
-fi
-
-cat <<EOF > "$CONFIG_FILE"
+else
+  cat <<EOF > "$CONFIG_FILE"
 [mysqld]
 performance_schema=ON
 performance_schema_instrument='%=on'
@@ -74,7 +72,8 @@ performance-schema-consumer-statements-digest=ON
 innodb_monitor_enable=all
 EOF
 
-echo "Archivo de configuración creado en $CONFIG_FILE"
+  echo "Archivo de configuración creado en $CONFIG_FILE"
+fi
 
 # Reiniciar el servicio de MariaDB
 echo "Reiniciando MariaDB..."
