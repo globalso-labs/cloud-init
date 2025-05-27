@@ -58,18 +58,30 @@ mariadb --version
 echo "Descargando archivo de configuración de MariaDB..."
 sudo mkdir -p /etc/mysql/mariadb.conf.d
 
-sudo curl -o /etc/mysql/mariadb.conf.d/99-custom.cnf https://raw.githubusercontent.com/globalso-labs/cloud-init/main/settings/mariadb/99-custom.cnf
-sudo chmod 644 /etc/mysql/mariadb.conf.d/99-custom.cnf
+# Verificar y descargar 99-custom.cnf si no existe
+if [ ! -f "/etc/mysql/mariadb.conf.d/99-custom.cnf" ]; then
+    echo "Descargando 99-custom.cnf..."
+    sudo curl -o /etc/mysql/mariadb.conf.d/99-custom.cnf https://raw.githubusercontent.com/globalso-labs/cloud-init/main/settings/mariadb/99-custom.cnf
+    sudo chmod 644 /etc/mysql/mariadb.conf.d/99-custom.cnf
 
-sudo curl -o /etc/mysql/mariadb.conf.d/99-replica.cnf https://raw.githubusercontent.com/globalso-labs/cloud-init/main/settings/mariadb/99-replica.cnf
-sudo chmod 644 /etc/mysql/mariadb.conf.d/99-replica.cnf
+    ### Calcular 75% de la memoria total en MB
+    TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    TOTAL_MEM_MB=$((TOTAL_MEM_KB / 1024))
+    INNODB_BUFFER_POOL_SIZE=$((TOTAL_MEM_MB * 75 / 100))
 
-### Esperar por confirmación del usuario para continuar
-echo "Por favor, revise el archivo de configuración en /etc/mysql/mariadb.conf.d/99-custom.cnf y confirme que los parámetros son correctos."
-read -p "¿Desea continuar con la configuración de MariaDB? (s/n): " confirm
-if [[ "$confirm" != "s" && "$confirm" != "S" ]]; then
-  echo "Configuración cancelada por el usuario."
-  exit 1
+    # Reemplazar o agregar la configuración de memoria usando sed
+    sudo sed -i "/innodb_buffer_pool_size/c\innodb_buffer_pool_size = ${INNODB_BUFFER_POOL_SIZE}M" /etc/mysql/mariadb.conf.d/99-custom.cnf
+else
+    echo "El archivo 99-custom.cnf ya existe. Omitiendo descarga."
+fi
+
+# Verificar y descargar 99-replica.cnf si no existe
+if [ ! -f "/etc/mysql/mariadb.conf.d/99-replica.cnf" ]; then
+    echo "Descargando 99-replica.cnf..."
+    sudo curl -o /etc/mysql/mariadb.conf.d/99-replica.cnf https://raw.githubusercontent.com/globalso-labs/cloud-init/main/settings/mariadb/99-replica.cnf
+    sudo chmod 644 /etc/mysql/mariadb.conf.d/99-replica.cnf
+else
+    echo "El archivo 99-replica.cnf ya existe. Omitiendo descarga."
 fi
 
 ### Configuración de límites de archivos abiertos (nofile)
