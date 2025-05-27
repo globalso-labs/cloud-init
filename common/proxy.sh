@@ -54,4 +54,4 @@ sudo nginx -t
 echo "[PROXY] Recargando NGINX..."
 sudo systemctl reload nginx
 
-echo "✅ Proxy listo: http://$SERVER_NAME → http://localhost:$PORT"
+echo "Proxy listo: http://$SERVER_NAME → http://localhost:$PORT"
