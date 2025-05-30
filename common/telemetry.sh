@@ -42,34 +42,23 @@ else
 fi
 
 # --- Download latest release ---
-echo "[OTEL] Locating latest $ARCH otelcol-contrib release..."
-RELEASE_URL=$(curl -s https://api.github.com/repos/open-telemetry/opentelemetry-collector-releases/releases/latest \
+echo "[OTEL] Locating latest $ARCH otelcol-contrib .deb package..."
+PACKAGE_URL=$(curl -s https://api.github.com/repos/open-telemetry/opentelemetry-collector-releases/releases/latest \
   | grep "browser_download_url" \
-  | grep "otelcol-contrib_.*linux_${ARCH}.tar.gz" \
+  | grep "otelcol-contrib_.*${ARCH}.deb" \
   | cut -d '"' -f 4 | head -1)
-
-if [[ -z "$RELEASE_URL" ]]; then
-  echo "Could not find release for architecture: $ARCH"
+if [[ -z "$PACKAGE_URL" ]]; then
+  echo "Could not find .deb release for architecture: $ARCH"
   exit 1
 fi
-
 TMPDIR=$(mktemp -d)
 cd "$TMPDIR"
-
-echo "[OTEL] Downloading $RELEASE_URL"
-curl -LO "$RELEASE_URL"
-tar xzf otelcol-contrib_*.tar.gz
-
-sudo mkdir -p /usr/local/bin/
-sudo cp otelcol-contrib /usr/local/bin/
-sudo chmod 755 /usr/local/bin/otelcol-contrib
-
-# --- System user and working dirs ---
-echo "[OTEL] Creating service user and directories..."
-sudo useradd --system --no-create-home --shell /usr/sbin/nologin otel || true
+echo "[OTEL] Downloading $PACKAGE_URL"
+curl -LO "$PACKAGE_URL"
+echo "[OTEL] Installing the .deb package"
+sudo dpkg -i otelcol-contrib*${ARCH}.deb
 
 sudo mkdir -p /etc/otelcol-contrib /var/lib/otelcol-contrib /tmp/telemetry/file_storage/compaction
-sudo chown -R otel:otel /etc/otelcol-contrib /var/lib/otelcol-contrib /tmp/telemetry
 sudo chmod 700 /tmp/telemetry/file_storage /tmp/telemetry/file_storage/compaction
 
 # --- Write config with substitutions ---
@@ -79,7 +68,7 @@ service:
   pipelines:
     logs:
       exporters: [ otlphttp ]
-      receivers: [ otlp, filelog ]
+      receivers: [ otlp, filelog, journald ]
       processors: [ batch, memory_limiter, resourcedetection, resource ]
     traces:
       exporters: [ otlphttp ]
@@ -133,8 +122,10 @@ receivers:
     protocols:
       http:
         endpoint: 0.0.0.0:4318
+  journald:
+    directory: /var/log/journal
   filelog:
-    include: [ /var/app/current/**/*.log]
+    include: [ /var/log/**/*.log]
     storage: "file_storage"
   hostmetrics:
     collection_interval: 30s
@@ -151,7 +142,14 @@ receivers:
       process:
         include:
           match_type: "strict"
-          names: [ "php" ]
+          names:
+          - "systemd"
+          - "sshd"
+          - "rsyslogd"
+          - "cron"
+          - "dbus-daemon"
+          - "NetworkManager"
+          - "auditd"
         metrics:
           process.cpu.utilization:
             enabled: true
@@ -171,29 +169,7 @@ sed -e "s|{{.Endpoint}}|$ENDPOINT|g" \
     -e "s|{{.Name}}|$NAME|g" \
     config.tmp.yaml | sudo tee /etc/otelcol-contrib/config.yaml > /dev/null
 
-sudo chown otel:otel /etc/otelcol-contrib/config.yaml
 sudo chmod 640 /etc/otelcol-contrib/config.yaml
-
-# --- Systemd service ---
-sudo tee /etc/systemd/system/otelcol-contrib.service > /dev/null <<EOF
-[Unit]
-Description=OpenTelemetry Collector Contrib
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=otel
-Group=otel
-ExecStart=/usr/local/bin/otelcol-contrib --config /etc/otelcol-contrib/config.yaml
-Restart=on-failure
-WorkingDirectory=/var/lib/otelcol-contrib
-Environment="HOME=/var/lib/otelcol-contrib"
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
 # --- Enable and start service ---
 sudo systemctl daemon-reload
 sudo systemctl enable --now otelcol-contrib
