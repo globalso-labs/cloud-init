@@ -141,10 +141,10 @@ fi
 
 if ! sudo -u postgres psql -tAc "SELECT spcname FROM pg_tablespace WHERE spcname='pg_temp'" | grep -q pg_temp; then
     echo "[POSTGRESQL] Creating temporary tablespace in $TMPDIR..."
-    sudo -u postgres psql -c "CREATE TABLESPACE pg_temp LOCATION '$TMPDIR';"
+    sudo -u postgres psql -c "CREATE TABLESPACE tmp_tblspc LOCATION '$TMPDIR';"
 fi
 
-sudo sed -i "s|^#*temp_tablespaces.*|temp_tablespaces = 'pg_temp'|" "$PG_CONF_DIR/postgresql.conf"
+sudo sed -i "s|^#*temp_tablespaces.*|temp_tablespaces = 'tmp_tblspc'|" "$PG_CONF_DIR/postgresql.conf"
 
 # Fix permissions in data directory
 echo "[POSTGRESQL] Fixing permissions in data, logs, and tmp directories..."

@@ -111,6 +111,9 @@ exporters:
 
 processors:
   batch:
+    send_batch_max_size: 2048           # Lower than default (8192)
+    send_batch_size: 1024               # VERY conservative example
+    timeout: 1s                         # Send frequently so batches don't grow big
   memory_limiter:
     check_interval: 5s
     limit_mib: 128
