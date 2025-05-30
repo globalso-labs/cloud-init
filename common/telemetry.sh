@@ -42,21 +42,29 @@ else
 fi
 
 # --- Download latest release ---
-echo "[OTEL] Locating latest $ARCH otelcol-contrib .deb package..."
-PACKAGE_URL=$(curl -s https://api.github.com/repos/open-telemetry/opentelemetry-collector-releases/releases/latest \
+echo "[OTEL] Locating latest $ARCH otelcol-contrib release..."
+RELEASE_URL=$(curl -s https://api.github.com/repos/open-telemetry/opentelemetry-collector-releases/releases/latest \
   | grep "browser_download_url" \
-  | grep "otelcol-contrib_.*${ARCH}.deb" \
+  | grep "otelcol-contrib_.*linux_${ARCH}.tar.gz" \
   | cut -d '"' -f 4 | head -1)
-if [[ -z "$PACKAGE_URL" ]]; then
-  echo "Could not find .deb release for architecture: $ARCH"
+
+if [[ -z "$RELEASE_URL" ]]; then
+  echo "Could not find release for architecture: $ARCH"
   exit 1
 fi
+
 TMPDIR=$(mktemp -d)
 cd "$TMPDIR"
-echo "[OTEL] Downloading $PACKAGE_URL"
-curl -LO "$PACKAGE_URL"
-echo "[OTEL] Installing the .deb package"
-sudo dpkg -i otelcol-contrib*${ARCH}.deb
+
+echo "[OTEL] Downloading $RELEASE_URL"
+curl -LO "$RELEASE_URL"
+tar xzf otelcol-contrib_*.tar.gz
+
+sudo mkdir -p /usr/local/bin/
+sudo cp otelcol-contrib /usr/local/bin/
+sudo chmod 755 /usr/local/bin/otelcol-contrib
+
+
 
 sudo mkdir -p /etc/otelcol-contrib /var/lib/otelcol-contrib /tmp/telemetry/file_storage/compaction
 sudo chmod 700 /tmp/telemetry/file_storage /tmp/telemetry/file_storage/compaction
@@ -170,6 +178,25 @@ sed -e "s|{{.Endpoint}}|$ENDPOINT|g" \
     config.tmp.yaml | sudo tee /etc/otelcol-contrib/config.yaml > /dev/null
 
 sudo chmod 640 /etc/otelcol-contrib/config.yaml
+
+# --- Systemd service ---
+sudo tee /etc/systemd/system/otelcol-contrib.service > /dev/null <<EOF
+[Unit]
+Description=OpenTelemetry Collector Contrib
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/otelcol-contrib --config /etc/otelcol-contrib/config.yaml
+Restart=on-failure
+WorkingDirectory=/var/lib/otelcol-contrib
+Environment="HOME=/var/lib/otelcol-contrib"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
 # --- Enable and start service ---
 sudo systemctl daemon-reload
 sudo systemctl enable --now otelcol-contrib
