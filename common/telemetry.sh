@@ -189,7 +189,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 ExecStart=/usr/local/bin/otelcol-contrib --config /etc/otelcol-contrib/config.yaml
-Restart=on-failure
+Restart=always
 WorkingDirectory=/var/lib/otelcol-contrib
 Environment="HOME=/var/lib/otelcol-contrib"
 
