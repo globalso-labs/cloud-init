@@ -18,8 +18,6 @@
 # or otherwise exploit this software.
 #
 
-# Installs the latest available PostgreSQL version on Debian/Ubuntu-based systems
-
 set -euo pipefail
 
 echo "[POSTGRESQL] Updating package lists and installing prerequisites..."
@@ -37,7 +35,6 @@ else
     echo "[POSTGRESQL] PostgreSQL APT repository already configured."
 fi
 
-
 echo "[POSTGRESQL] Updating package lists after adding PostgreSQL repository..."
 sudo apt-get update
 
@@ -45,13 +42,10 @@ echo "[POSTGRESQL] Determining latest available PostgreSQL version..."
 PG_MAJOR_VERSION=$(apt-cache search '^postgresql-[0-9]+$' | \
     grep -Po '^postgresql-\K[0-9]+' | \
     sort -n | tail -1)
-
 if [[ -z "$PG_MAJOR_VERSION" ]]; then
     echo "[POSTGRESQL] Could not determine latest PostgreSQL version from the package repository." >&2
     exit 1
 fi
-
-
 
 echo "[POSTGRESQL] Installing PostgreSQL $PG_MAJOR_VERSION and core contrib utilities..."
 sudo apt-get install -y "postgresql-$PG_MAJOR_VERSION" "postgresql-contrib-$PG_MAJOR_VERSION"
@@ -60,11 +54,9 @@ sudo apt-get install -y "postgresql-$PG_MAJOR_VERSION" "postgresql-contrib-$PG_M
 TOTAL_RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
 TOTAL_RAM_MB=$((TOTAL_RAM_KB / 1024))
 TOTAL_RAM_GB=$((TOTAL_RAM_MB / 1024))
-
 echo "[POSTGRESQL] System RAM: ${TOTAL_RAM_MB}MB (${TOTAL_RAM_GB}GB)"
 
-# Compute optimal settings based on RAM (conservative estimates for reliability)
-# Feel free to adjust according to workload type and requirements
+# Compute optimal settings
 SHARED_BUFFERS_MB=$((TOTAL_RAM_MB / 4))        # 25% of RAM
 EFFECTIVE_CACHE_SIZE_MB=$(( (TOTAL_RAM_MB * 3) / 4 ))  # 75% of RAM
 MAINTENANCE_WORK_MEM_MB=$((TOTAL_RAM_MB / 16)) # ~6% of RAM
@@ -82,8 +74,22 @@ echo "[POSTGRESQL] Stopping PostgreSQL service before data transfer/configuratio
 sudo systemctl stop postgresql
 
 DATADIR="/postgres/data"
+LOGDIR="/postgres/logs"
+TMPDIR="/postgres/tmp"
+
 PGDATA_CURRENT=$(sudo -u postgres psql -tAc "show data_directory;" 2>/dev/null || echo "")
 PGDATA_DEFAULT="/var/lib/postgresql/${PG_MAJOR_VERSION}/main"
+
+# Create log and tmp dirs and fix permissions
+echo "[POSTGRESQL] Ensuring log directory ($LOGDIR) exists and is owned by postgres..."
+sudo mkdir -p "$LOGDIR"
+sudo chown postgres:postgres "$LOGDIR"
+sudo chmod 700 "$LOGDIR"
+
+echo "[POSTGRESQL] Ensuring tmp directory ($TMPDIR) exists and is owned by postgres..."
+sudo mkdir -p "$TMPDIR"
+sudo chown postgres:postgres "$TMPDIR"
+sudo chmod 700 "$TMPDIR"
 
 echo "[POSTGRESQL] Ensuring target data directory ($DATADIR) exists and is owned by postgres..."
 sudo mkdir -p "$DATADIR"
@@ -94,14 +100,10 @@ echo "[POSTGRESQL] Initializing new PostgreSQL cluster at $DATADIR..."
 sudo -u postgres /usr/lib/postgresql/"$PG_MAJOR_VERSION"/bin/initdb -D "$DATADIR"
 
 echo "[POSTGRESQL] Adjusting PostgreSQL main config to use new data directory..."
-PG_SERVICE_FILE="/etc/postgresql/${PG_MAJOR_VERSION}/main/postgresql.conf"
-PG_ENV_FILE="/etc/postgresql/${PG_MAJOR_VERSION}/main/environment"
-PG_CTL_SCRIPT="/lib/systemd/system/postgresql@.service"
 PG_CONF_DIR="/etc/postgresql/${PG_MAJOR_VERSION}/main"
 
-# Update /etc/postgresql/<version>/main/postgresql.conf with new data_directory
-sudo sed -i "s|^#*data_directory =.*|data_directory = '$DATADIR'|" "$PG_CONF_DIR/postgresql.conf"
-
+# Set custom configuration
+sudo sed -i "s|^#*data_directory *=.*|data_directory = '$DATADIR'|" "$PG_CONF_DIR/postgresql.conf"
 echo "[POSTGRESQL] Setting tuned memory parameters in postgresql.conf..."
 sudo sed -i "s/^#*shared_buffers.*/shared_buffers = ${SHARED_BUFFERS_MB}MB/" "$PG_CONF_DIR/postgresql.conf"
 sudo sed -i "s/^#*effective_cache_size.*/effective_cache_size = ${EFFECTIVE_CACHE_SIZE_MB}MB/" "$PG_CONF_DIR/postgresql.conf"
@@ -122,23 +124,37 @@ echo "[POSTGRESQL] Configuring pg_hba.conf to accept all remote connections (IPv
 echo "host    all             all             0.0.0.0/0               md5" | sudo tee -a "$PG_CONF_DIR/pg_hba.conf" > /dev/null
 echo "host    all             all             ::/0                    md5" | sudo tee -a "$PG_CONF_DIR/pg_hba.conf" > /dev/null
 
-# Advanced reliability and security recommendations for production
-sudo sed -i "s/^#*listen_addresses.*/listen_addresses = '*'/" "$PG_CONF_DIR/postgresql.conf"
+# Set up logs and temp files
+echo "[POSTGRESQL] Configuring logs and temporary directories..."
+
 sudo sed -i "s/^#*logging_collector.*/logging_collector = on/" "$PG_CONF_DIR/postgresql.conf"
-sudo sed -i "s|^#*log_directory.*|log_directory = 'log'|" "$PG_CONF_DIR/postgresql.conf"
+sudo sed -i "s|^#*log_directory.*|log_directory = '$LOGDIR'|" "$PG_CONF_DIR/postgresql.conf"
 sudo sed -i "s/^#*log_filename.*/log_filename = 'postgresql-%a.log'/" "$PG_CONF_DIR/postgresql.conf"
 sudo sed -i "s/^#*log_rotation_age.*/log_rotation_age = 1d/" "$PG_CONF_DIR/postgresql.conf"
 sudo sed -i "s/^#*log_rotation_size.*/log_rotation_size = 0/" "$PG_CONF_DIR/postgresql.conf"
 
+# Create temp tablespace for PostgreSQL
+if ! sudo -u postgres psql -c "\dt" >/dev/null 2>&1; then
+    sudo systemctl start postgresql
+    sleep 2
+fi
 
-echo "[POSTGRESQL] Fixing permissions in data directory..."
-sudo chown -R postgres:postgres "$DATADIR"
-sudo chmod 700 "$DATADIR"
+if ! sudo -u postgres psql -tAc "SELECT spcname FROM pg_tablespace WHERE spcname='pg_temp'" | grep -q pg_temp; then
+    echo "[POSTGRESQL] Creating temporary tablespace in $TMPDIR..."
+    sudo -u postgres psql -c "CREATE TABLESPACE pg_temp LOCATION '$TMPDIR';"
+fi
+
+sudo sed -i "s|^#*temp_tablespaces.*|temp_tablespaces = 'pg_temp'|" "$PG_CONF_DIR/postgresql.conf"
+
+# Fix permissions in data directory
+echo "[POSTGRESQL] Fixing permissions in data, logs, and tmp directories..."
+sudo chown -R postgres:postgres "$DATADIR" "$LOGDIR" "$TMPDIR"
+sudo chmod 700 "$DATADIR" "$LOGDIR" "$TMPDIR"
 
 echo "[POSTGRESQL] Restarting PostgreSQL service with new data directory and configuration..."
 sudo systemctl restart postgresql
 
 echo "[POSTGRESQL] Showing final settings (tuned parameters):"
-sudo -u postgres psql -c "SHOW shared_buffers; SHOW effective_cache_size; SHOW maintenance_work_mem; SHOW work_mem; SHOW data_directory;"
+sudo -u postgres psql -c "SHOW shared_buffers; SHOW effective_cache_size; SHOW maintenance_work_mem; SHOW work_mem; SHOW data_directory; SHOW log_directory; SHOW temp_tablespaces;"
 
 echo "[POSTGRESQL] Installation, tuning, and production preparation complete."
