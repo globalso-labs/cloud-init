@@ -73,9 +73,9 @@ echo "  maintenance_work_mem = ${MAINTENANCE_WORK_MEM_MB}MB"
 echo "[POSTGRESQL] Stopping PostgreSQL service before data transfer/configuration..."
 sudo systemctl stop postgresql
 
-DATADIR="/postgres/data"
-LOGDIR="/postgres/logs"
-TMPDIR="/postgres/tmp"
+DATADIR="/database/data"
+LOGDIR="/database/logs"
+TMPDIR="/database/tmp"
 
 PGDATA_CURRENT=$(sudo -u postgres psql -tAc "show data_directory;" 2>/dev/null || echo "")
 PGDATA_DEFAULT="/var/lib/postgresql/${PG_MAJOR_VERSION}/main"
