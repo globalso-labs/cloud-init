@@ -144,7 +144,6 @@ receivers:
       cpu:
       disk:
       load:
-        cpu_average: true
       filesystem:
       memory:
       network:

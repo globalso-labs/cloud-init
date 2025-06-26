@@ -59,17 +59,27 @@ if [ -f "$CONFIG_FILE" ]; then
 else
   cat <<EOF > "$CONFIG_FILE"
 [mysqld]
-performance_schema=ON
-performance_schema_instrument='%=on'
-performance-schema-consumer-events-statements-current=ON
-performance-schema-consumer-events-statements-history=ON
-performance-schema-consumer-events-statements-history-long=ON
+performance_schema = on
+performance-schema-consumer-events-statements-history-long = ON
+performance-schema-consumer-events-statements-history = ON
+performance-schema-consumer-events-statements-current = ON
+performance-schema-consumer-events-stages-current=ON
+performance-schema-consumer-events-stages-history=ON
+performance-schema-consumer-events-stages-history-long=ON
+performance-schema-consumer-events-transactions-current=ON
+performance-schema-consumer-events-transactions-history=ON
+performance-schema-consumer-events-transactions-history-long=ON
 performance-schema-consumer-events-waits-current=ON
 performance-schema-consumer-events-waits-history=ON
 performance-schema-consumer-events-waits-history-long=ON
-performance-schema-consumer-statements-digest=ON
-
+performance-schema-instrument='%=ON'
+max-digest-length=2048
+performance-schema-max-digest-length=2018
 innodb_monitor_enable=all
+
+[mysqld]
+plugin_load_add = query_response_time
+query_response_time_stats=ON;
 EOF
 
   echo "Archivo de configuración creado en $CONFIG_FILE"

@@ -101,7 +101,7 @@ COMMAND=$(printf "%s\n" "${ENV_VARS[@]}")
 #   - Crear (o actualizar) el archivo /opt/azure/venv.
 #   - Para cada línea nueva, eliminar la definición previa (si existe) y agregar la nueva.
 REMOTE_CMD=$(cat <<EOF
-FILE="/opt/azure/venv"
+FILE="/opt/cloud/venv"
 sudo mkdir -p /opt/azure
 sudo touch "\$FILE"
 
