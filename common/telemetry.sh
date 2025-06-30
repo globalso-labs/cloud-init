@@ -21,15 +21,14 @@
 
 # --- User params ---
 if [[ $# -lt 2 ]]; then
-  echo "Usage: $0 <ScopeID> <Namespace>"
+  echo "Usage: $0 <ScopeID> <Namespace> [<Service>]"
   exit 1
 fi
 
 SCOPEID="$1"
 NAMESPACE="$2"
 ENDPOINT="telemetry.globalso.dev"
-NAME=$(hostname)
-
+NAME="${3:-$(hostname)}"
 # --- Detect architecture ---
 ARCH=$(uname -m)
 if [[ "$ARCH" == "x86_64" ]]; then
@@ -126,7 +125,7 @@ processors:
         value: "{{.Name}}"
         action: "upsert"
   resourcedetection:
-    detectors: [ "env", "system", "azure", "ec2", "lambda", "elastic_beanstalk", "lambda" ]
+    detectors: [ "env", "lambda", "elastic_beanstalk", "azure", "eks", "ecs", "ec2" , "system"]
 
 receivers:
   otlp:
