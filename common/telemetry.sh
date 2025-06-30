@@ -125,7 +125,7 @@ processors:
         value: "{{.Name}}"
         action: "upsert"
   resourcedetection:
-    detectors: [ "env", "lambda", "elastic_beanstalk", "azure", "eks", "ecs", "ec2" , "system"]
+    detectors: [ "env", "lambda", "elastic_beanstalk", "azure", "ecs", "ec2" , "system"]
 
 receivers:
   otlp:
