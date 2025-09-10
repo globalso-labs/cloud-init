@@ -135,7 +135,7 @@ receivers:
   journald:
     directory: /var/log/journal
   filelog:
-    include: [ /var/log/**/*.log]
+    include: [ "/var/log/*.log", "/var/log/**/*.log" ]
     storage: "file_storage"
   hostmetrics:
     collection_interval: 30s
